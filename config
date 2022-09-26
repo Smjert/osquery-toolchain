@@ -4,11 +4,11 @@
 # The vendor part has to be changed also in the crosstool-ng-config file
 TUPLE=$MACHINE-osquery-linux-gnu
 
-ZLIB_VER="1.2.11"
+ZLIB_VER="1.2.12"
 ZLIB_URL="https://zlib.net/zlib-${ZLIB_VER}.tar.gz"
-ZLIB_SHA="c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1"
+ZLIB_SHA="91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9"
 
-LLVM_VERSION="11.0.0"
+LLVM_VERSION="12.0.1"
 GCC_VERSION="8.3.0" # Notice: this has to match the same version that has been configured in crosstool-ng-config
 
 PARALLEL_JOBS=$(( $(nproc)+1 ))
@@ -18,4 +18,4 @@ BUILD_GENERATOR="Ninja"
 LLVM_BUILD_TYPE=MinSizeRel
 
 # If this is false, only the last stage with the clang compile and the first stage, with crosstool gcc will be kept
-KEEP_INTERMEDIATE_STAGES=0
+KEEP_INTERMEDIATE_STAGES=1

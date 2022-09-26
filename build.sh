@@ -8,6 +8,7 @@
 
 # Heavily influenced by https://github.com/theopolis/build-anywhere
 # Version 1.0.0
+set -x
 
 function build_gcc() {
   # Clone and build CrosstoolNG.
@@ -29,7 +30,7 @@ function build_gcc() {
   # Build GCC_TOOLCHAIN.
   if [[ ! -e $CURRENT_DIR/$TUPLE/bin/$TUPLE-gcc ]]; then
     ( cd $CURRENT_DIR/crosstool-ng;
-      CT_PREFIX=$CURRENT_DIR ./ct-ng build )
+      CT_PREFIX=$CURRENT_DIR ./ct-ng build.${PARALLEL_JOBS} )
   fi
 }
 
@@ -54,9 +55,10 @@ function build_zlib() {
   if [[ ! -e $PREFIX/lib/libz.a ]]; then
     ( cd $CURRENT_DIR/zlib-${ZLIB_VER}; \
       CC=$TUPLE-gcc \
+      cc=$TUPLE-gcc \
       CXX=$TUPLE-g++ \
-      CFLAGS=--sysroot=$SYSROOT \
-      LDFLAGS=--sysroot=$SYSROOT \
+      CFLAGS="--sysroot=$SYSROOT -fPIC -DPIC" \
+      LDFLAGS="--sysroot=$SYSROOT" \
       ./configure --prefix $PREFIX;
       make -j $PARALLEL_JOBS; \
       make install )
@@ -95,6 +97,9 @@ function build_llvm() {
             -DLLVM_ENABLE_LIBXML2=OFF \
             -DLLVM_ENABLE_PIC=ON \
             -DLLVM_DEFAULT_TARGET_TRIPLE=${TUPLE} \
+            -DLLVM_ENABLE_TERMINFO=OFF \
+            -DLLVM_ENABLE_ZLIB=ON \
+            -DZLIB_ROOT=${SYSROOT}/usr \
             ${additional_cmake} \
             ../llvm && \
       cmake --build . -j ${PARALLEL_JOBS} && \
@@ -135,6 +140,9 @@ function build_compiler-rt-builtins() {
             -DCOMPILER_RT_BUILD_XRAY=OFF \
             -DCOMPILER_RT_INCLUDE_TESTS=OFF \
             -DCOMPILER_RT_INSTALL_PATH=${install_dir} \
+            -DLLVM_ENABLE_TERMINFO=OFF \
+            -DLLVM_ENABLE_ZLIB=ON \
+            -DZLIB_ROOT=${SYSROOT}/usr \
             ${additional_cmake} \
             ../compiler-rt && \
       cmake --build . -j ${PARALLEL_JOBS} && \
@@ -185,6 +193,9 @@ function build_compiler_libs() {
             -DLIBUNWIND_USE_COMPILER_RT=ON \
             -DLIBUNWIND_ENABLE_STATIC=ON \
             -DLIBUNWIND_ENABLE_SHARED=OFF \
+            -DLLVM_ENABLE_TERMINFO=OFF \
+            -DLLVM_ENABLE_ZLIB=ON \
+            -DZLIB_ROOT=${SYSROOT}/usr \
             ${additional_cmake} \
             ../llvm && \
       cmake --build . --target cxx -j ${PARALLEL_JOBS} && \
@@ -226,6 +237,117 @@ function make_symlink_real() {
   fi
 }
 
+function cleanup_stage1() {
+  prefix=$1
+
+  # Remove unused GCC binaries
+  ( cd $prefix/bin; \
+    rm -f gcc*; \
+    rm -f g++; \
+    rm -f c++; \
+    rm -f cc; \
+    rm -f ld; \
+    rm -f ld.bfd;
+    rm -f addr2line; \
+    rm -f ar; \
+    rm -f as; \
+    rm -f c++filt; \
+    rm -f cpp; \
+    rm -f elfedit; \
+    rm -f gcov*; \
+    rm -f gprof; \
+    rm -f nm; \
+    rm -f objcopy; \
+    rm -f objdump; \
+    rm -f populate; \
+    rm -f ranlib; \
+    rm -f readelf; \
+    rm -f size; \
+    rm -f strings; \
+    rm -f strip)
+
+  # Remove crosstool-ng leftovers
+  ( cd $prefix/bin; \
+    rm -f ct-ng.config)
+
+  # Remove unused libs
+  ( cd $prefix/lib; \
+    rm -f libpthread.a; \
+    rm -f libc.a; \
+    rm -f libdl.a; \
+    rm -f librt.a; \
+    rm -f libm.a; \
+    rm -f libresolv.a)
+}
+
+function cleanup_final() {
+  # Remove all the versions of libstdc++ from the sysroot.
+  ( cd $PREFIX/lib; \
+    rm -f libstdc*)
+
+  # Remove unused GCC binaries
+  ( cd $PREFIX/bin; \
+    rm -f gcc*; \
+    rm -f g++; \
+    rm -f c++; \
+    rm -f cc; \
+    rm -f ld; \
+    rm -f ld.bfd;
+    rm -f addr2line; \
+    rm -f ar; \
+    rm -f as; \
+    rm -f c++filt; \
+    rm -f cpp; \
+    rm -f elfedit; \
+    rm -f gcov*; \
+    rm -f gprof; \
+    rm -f nm; \
+    rm -f objcopy; \
+    rm -f objdump; \
+    rm -f populate; \
+    rm -f ranlib; \
+    rm -f readelf; \
+    rm -f size; \
+    rm -f strings; \
+    rm -f strip)
+
+  # Remove crosstool-ng leftovers
+  ( cd $PREFIX/bin; \
+    rm -f ct-ng.config)
+
+  # Remove unused libs
+  ( cd $PREFIX/lib; \
+    rm -f libpthread.a; \
+    rm -f libc.a; \
+    rm -f libdl.a; \
+    rm -f librt.a; \
+    rm -f libm.a; \
+    rm -f libresolv.a; \
+    rm -rf gcc)
+}
+
+function generate_toolchain_symlinks() {
+  # These are symlinks to llvm binaries using the "standard" names
+  # so that build systems like autotools can find them,
+  # or the developer has them available with the usual name.
+  # For example ar -> llvm-ar, llvm-cxxfilt -> c++filt
+
+  ( cd $PREFIX/bin; \
+    ln -s llvm-ar ar; \
+    ln -s llvm-as as; \
+    ln -s llvm-ranlib ranlib; \
+    ln -s clang-cpp cpp; \
+    ln -s llvm-nm nm; \
+    ln -s llvm-cxxfilt c++filt; \
+    ln -s llvm-readelf readelf; \
+    ln -s llvm-strip strip; \
+    ln -s llvm-objdump objdump; \
+    ln -s llvm-size size; \
+    ln -s llvm-strings strings; \
+    ln -s llvm-objcopy objcopy; \
+    ln -s llvm-addr2line addr2line)
+}
+
 set -e
 
 MACHINE="$(uname -m)"
@@ -252,12 +374,14 @@ if [ -e $TOOLCHAIN_DIR/final/sysroot ]; then
 fi
 
 ## STAGE 0 ##
+echo "#################"
+echo "Beginning stage 0"
+echo "#################"
 CURRENT_DIR=$TOOLCHAIN_DIR/stage0
 mkdir -p $CURRENT_DIR
 
 SYSROOT=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
-
 
 build_gcc
 prepare_sysroot
@@ -288,6 +412,9 @@ if [[ ! -e $FINAL_SYSROOT/usr/lib/gcc ]]; then
 fi
 
 ## STAGE 1 ##
+echo "#################"
+echo "Beginning stage 1"
+echo "#################"
 CURRENT_DIR=$TOOLCHAIN_DIR/stage1
 SYSROOT=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
@@ -331,6 +458,8 @@ additional_compiler_flags="-s" \
 additional_cmake="" \
 build_llvm
 
+cleanup_stage1 $PREFIX
+
 build_folder="build-compilerrt-builtins" \
 cc_compiler="clang" \
 cxx_compiler="clang++" \
@@ -365,6 +494,10 @@ build_compiler_libs
   rm -f liblld*.a)
 
 ## FINAL ##
+echo "#####################"
+echo "Beginning stage final"
+echo "#####################"
+
 # We do not update the sysroot because we want to use the one from the previous stage
 CURRENT_DIR=$TOOLCHAIN_DIR/final
 PREFIX=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot/usr
@@ -392,48 +525,13 @@ CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-# Remove all the versions of libstdc++ from the sysroot.
-( cd $PREFIX/lib; \
-  rm -f libstdc*)
+cleanup_final
+generate_toolchain_symlinks
 
-# Remove unused GCC binaries
-( cd $PREFIX/bin; \
-  rm -f gcc; \
-  rm -f g++; \
-  rm -f gcc-${GCC_VERSION}; \
-  rm -f c++; \
-  rm -f cc; \
-  rm -f ld; \
-  rm -f ld.bfd)
-
-# Remove crosstool-ng leftovers
-( cd $PREFIX/bin; \
-  rm -f ct-ng.config)
-
-symlinks_to_transform=(
-  lib/gcc
-  bin/addr2line
-  bin/ar bin/as
-  bin/c++filt
-  bin/cpp
-  bin/elfedit
-  bin/gcc-ar
-  bin/gcc-nm
-  bin/gcc-ranlib
-  bin/gcov
-  bin/gcov-dump
-  bin/gcov-tool
-  bin/gprof
-  bin/nm
-  bin/objcopy
-  bin/objdump
-  bin/populate
-  bin/ranlib
-  bin/readelf
-  bin/size
-  bin/strings
-  bin/strip
-)
+# All the binaries that were here in previous versions were actually GCC toolchain binaries
+# which we don't want to use, since they have been linked against the system libc.
+# We leave this logic for simplicity, if in the future we have to use it again for valid binaries.
+symlinks_to_transform=()
 
 for symlink in "${symlinks_to_transform[@]}"
 do
