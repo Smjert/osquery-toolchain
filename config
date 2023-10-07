@@ -4,14 +4,14 @@
 # The vendor part has to be changed also in the crosstool-ng-config file
 TUPLE=$MACHINE-osquery-linux-gnu
 
-ZLIB_VER="1.2.12"
+ZLIB_VER="1.2.13"
 ZLIB_URL="https://zlib.net/zlib-${ZLIB_VER}.tar.gz"
-ZLIB_SHA="91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9"
+ZLIB_SHA="b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30"
 
-LLVM_VERSION="12.0.1"
-GCC_VERSION="8.3.0" # Notice: this has to match the same version that has been configured in crosstool-ng-config
+LLVM_VERSION="14.0.6"
 
-PARALLEL_JOBS=$(( $(nproc)+1 ))
+#PARALLEL_JOBS=$(( $(nproc)+1 ))
+PARALLEL_JOBS=28
 BUILD_GENERATOR="Ninja"
 
 # Valid values: Release, RelWithDebInfo, MinSizeRel, Debug

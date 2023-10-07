@@ -14,7 +14,7 @@ function build_gcc() {
   # Clone and build CrosstoolNG.
   if [[ ! -d $CURRENT_DIR/crosstool-ng ]]; then
     ( cd $CURRENT_DIR; \
-      git clone https://github.com/crosstool-ng/crosstool-ng -b crosstool-ng-1.24.0 --single-branch )
+      git clone https://github.com/crosstool-ng/crosstool-ng -b crosstool-ng-1.25.0 --single-branch )
   fi
 
   # Use our own config that sets a legacy glibc.
@@ -78,15 +78,14 @@ function build_llvm() {
             -DCMAKE_BUILD_TYPE=${LLVM_BUILD_TYPE} \
             -DCMAKE_C_COMPILER=${cc_compiler} \
             -DCMAKE_CXX_COMPILER=${cxx_compiler} \
+            -DCMAKE_EXE_LINKER_FLAGS="${additional_linker_flags}" \
+            -DCMAKE_SHARED_LINKER_FLAGS="${additional_linker_flags}" \
             -DCMAKE_INSTALL_PREFIX=${install_dir} \
-            -DCMAKE_C_FLAGS="${additional_compiler_flags}" \
-            -DCMAKE_CXX_FLAGS="${additional_compiler_flags}" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
-            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
             -DCMAKE_SYSROOT="${SYSROOT}" \
             -DLLVM_REQUIRES_RTTI=ON \
             -DLLVM_TARGETS_TO_BUILD=${targets_to_build} \
             -DLLVM_ENABLE_PROJECTS="${llvm_projects}" \
+            -DLLVM_ENABLE_RUNTIMES="${llvm_runtimes}" \
             -DLLVM_BUILD_LLVM_DYLIB=ON \
             -DLLVM_LINK_LLVM_DYLIB=ON \
             -DLLVM_ENABLE_EH=ON \
@@ -99,92 +98,19 @@ function build_llvm() {
             -DLLVM_DEFAULT_TARGET_TRIPLE=${TUPLE} \
             -DLLVM_ENABLE_TERMINFO=OFF \
             -DLLVM_ENABLE_ZLIB=ON \
-            -DZLIB_ROOT=${SYSROOT}/usr \
-            ${additional_cmake} \
-            ../llvm && \
-      cmake --build . -j ${PARALLEL_JOBS} && \
-      cmake --build . --target install -j ${PARALLEL_JOBS} \
-    )
-
-  fi
-}
-
-function build_compiler-rt-builtins() {
-
-  if [[ ! -e ${install_dir}/lib/linux/libclang_rt.builtins-$MACHINE.a ]]; then
-
-    ( cd $LLVM_SRC && \
-      mkdir -p ${build_folder} && \
-      cd ${build_folder} && \
-      cmake -G ${BUILD_GENERATOR} \
-            -DCMAKE_BUILD_TYPE=${LLVM_BUILD_TYPE} \
-            -DCMAKE_C_COMPILER=${cc_compiler} \
-            -DCMAKE_CXX_COMPILER=${cxx_compiler} \
-            -DCMAKE_INSTALL_PREFIX=${install_dir} \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
-            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
-            -DCMAKE_SYSROOT="${SYSROOT}" \
-            -DLLVM_BUILD_LLVM_DYLIB=ON \
-            -DLLVM_LINK_LLVM_DYLIB=ON \
-            -DLLVM_DEFAULT_TARGET_TRIPLE=${TUPLE} \
-            -DLLVM_REQUIRES_RTTI=ON \
-            -DLLVM_ENABLE_EH=ON \
-            -DLLVM_ENABLE_RTTI=ON \
-            -DLLVM_INCLUDE_DOCS=OFF \
-            -DLLVM_INCLUDE_TESTS=OFF \
-            -DLLVM_INCLUDE_EXAMPLES=OFF \
-            -DLLVM_ENABLE_PIC=ON \
+            -DZLIB_ROOT="${SYSROOT}/usr" \
             -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
             -DCOMPILER_RT_BUILD_PROFILE=OFF \
             -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
             -DCOMPILER_RT_BUILD_XRAY=OFF \
             -DCOMPILER_RT_INCLUDE_TESTS=OFF \
-            -DCOMPILER_RT_INSTALL_PATH=${install_dir} \
-            -DLLVM_ENABLE_TERMINFO=OFF \
-            -DLLVM_ENABLE_ZLIB=ON \
-            -DZLIB_ROOT=${SYSROOT}/usr \
-            ${additional_cmake} \
-            ../compiler-rt && \
-      cmake --build . -j ${PARALLEL_JOBS} && \
-      cmake --build . --target install -j ${PARALLEL_JOBS} \
-    )
-  fi
-}
-
-#-DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-function build_compiler_libs() {
-
-  if [[ ! -e ${install_dir}/lib/libc++.a ]]; then
-    ( cd $LLVM_SRC && \
-      mkdir -p ${build_folder} && \
-      cd ${build_folder} && \
-      cmake -G ${BUILD_GENERATOR} \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCMAKE_BUILD_TYPE=${LLVM_BUILD_TYPE} \
-            -DCMAKE_C_COMPILER=${cc_compiler} \
-            -DCMAKE_CXX_COMPILER=${cxx_compiler} \
-            -DCMAKE_INSTALL_PREFIX=${install_dir} \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
-            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
-            -DCMAKE_SYSROOT="${SYSROOT}" \
-            -DLLVM_REQUIRES_RTTI=ON \
-            -DLLVM_TARGETS_TO_BUILD=${targets_to_build} \
-            -DLLVM_ENABLE_PROJECTS="${llvm_projects}" \
-            -DLLVM_BUILD_LLVM_DYLIB=ON \
-            -DLLVM_LINK_LLVM_DYLIB=ON \
-            -DLLVM_ENABLE_EH=ON \
-            -DLLVM_ENABLE_RTTI=ON \
-            -DLLVM_INCLUDE_DOCS=OFF \
-            -DLLVM_INCLUDE_TESTS=OFF \
-            -DLLVM_INCLUDE_EXAMPLES=OFF \
-            -DLLVM_ENABLE_LIBXML2=OFF \
-            -DLLVM_ENABLE_PIC=ON \
-            -DLLVM_DEFAULT_TARGET_TRIPLE=${TUPLE} \
+            -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
             -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
             -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
             -DLIBCXXABI_USE_COMPILER_RT=ON \
             -DLIBCXXABI_ENABLE_SHARED=OFF \
             -DLIBCXXABI_ENABLE_STATIC=ON \
+            -DLIBCXX_CXX_ABI=libcxxabi \
             -DLIBCXX_INCLUDE_TESTS=OFF \
             -DLIBCXX_ENABLE_STATIC=ON \
             -DLIBCXX_ENABLE_SHARED=OFF \
@@ -193,18 +119,15 @@ function build_compiler_libs() {
             -DLIBUNWIND_USE_COMPILER_RT=ON \
             -DLIBUNWIND_ENABLE_STATIC=ON \
             -DLIBUNWIND_ENABLE_SHARED=OFF \
-            -DLLVM_ENABLE_TERMINFO=OFF \
-            -DLLVM_ENABLE_ZLIB=ON \
-            -DZLIB_ROOT=${SYSROOT}/usr \
-            ${additional_cmake} \
+            $additional_cmake \
             ../llvm && \
-      cmake --build . --target cxx -j ${PARALLEL_JOBS} && \
-      cmake --build . --target install-cxx -j ${PARALLEL_JOBS} && \
-      cmake --build . --target install-cxxabi -j ${PARALLEL_JOBS} && \
-      cmake --build . --target install-unwind -j ${PARALLEL_JOBS}
+      cmake --build . -j ${PARALLEL_JOBS} && \
+      cmake --build . --target install -j ${PARALLEL_JOBS} \
     )
+
   fi
 }
+
 
 function make_symlink_real() {
   symlink=$1
@@ -440,53 +363,28 @@ if [[ ! -d ${LLVM_SRC} ]]; then
   git clone https://github.com/llvm/llvm-project.git llvm -b llvmorg-$LLVM_VERSION --single-branch --depth 1
 fi
 
-LLVM_DISABLED_TOOLS="-DLLVM_TOOL_BUGPOINT_BUILD=OFF"
-LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_BUGPOINT_PASSES_BUILD=OFF"
-LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_DSYMUTIL_BUILD=OFF"
-LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_GOLD_BUILD=OFF"
-LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_LLVM_C_TEST_BUILD=OFF"
-LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_LLVM_EXEGESIS_BUILD=OFF"
+llvm_disabled_tools="-DLLVM_TOOL_BUGPOINT_BUILD=OFF"
+llvm_disabled_tools="${llvm_disabled_tools} -DLLVM_TOOL_BUGPOINT_PASSES_BUILD=OFF"
+llvm_disabled_tools="${llvm_disabled_tools} -DLLVM_TOOL_DSYMUTIL_BUILD=OFF"
+llvm_disabled_tools="${llvm_disabled_tools} -DLLVM_TOOL_GOLD_BUILD=OFF"
+llvm_disabled_tools="${llvm_disabled_tools} -DLLVM_TOOL_LLVM_C_TEST_BUILD=OFF"
+llvm_disabled_tools="${llvm_disabled_tools} -DLLVM_TOOL_LLVM_EXEGESIS_BUILD=OFF"
+
+llvm_stage0_additional_cmake="-DCOMPILER_RT_INSTALL_PATH=${SYSROOT}/usr"
+llvm_stage0_additional_cmake="${llvm_stage0_additional_cmake} -DLLVM_STATIC_LINK_CXX_STDLIB=ON"
+llvm_stage0_additional_cmake="${llvm_stage0_additional_cmake} ${llvm_disabled_tools}"
 
 build_folder="build-llvm-stage0" \
-cc_compiler="gcc" \
-cxx_compiler="g++" \
+cc_compiler="${GCC_TOOLCHAIN}/bin/$TUPLE-gcc" \
+cxx_compiler="${GCC_TOOLCHAIN}/bin/$TUPLE-g++" \
 install_dir="$PREFIX" \
 llvm_projects='clang;lld' \
+llvm_runtimes='libcxx;libcxxabi;libunwind;compiler-rt' \
 targets_to_build="$LLVM_MACHINE" \
-additional_linker_flags="" \
-additional_compiler_flags="-s" \
-additional_cmake="" \
+additional_cmake="${llvm_stage0_additional_cmake}" \
 build_llvm
 
 cleanup_stage1 $PREFIX
-
-build_folder="build-compilerrt-builtins" \
-cc_compiler="clang" \
-cxx_compiler="clang++" \
-install_dir="$PREFIX/lib/clang/$LLVM_VERSION" \
-additional_linker_flags="" \
-additional_cmake="" \
-build_compiler-rt-builtins
-
-build_folder="build-libcxx" \
-cc_compiler="clang" \
-cxx_compiler="clang++" \
-install_dir="$PREFIX" \
-llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build="$LLVM_MACHINE;BPF" \
-additional_linker_flags="" \
-additional_cmake="" \
-build_compiler_libs
-
-build_folder="build-libcxx" \
-cc_compiler="clang" \
-cxx_compiler="clang++" \
-install_dir="$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot/usr" \
-llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build="$LLVM_MACHINE;BPF" \
-additional_linker_flags="" \
-additional_cmake="" \
-build_compiler_libs
 
 # Remove the static libclang/liblld from the sysroot
 ( cd $PREFIX/lib; \
@@ -509,16 +407,17 @@ llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_RTLIB=compiler-r
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_USE_LINKER=lld"
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LIBCXX=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON"
+llvm_additional_cmake="${llvm_additional_cmake} ${llvm_disabled_tools}"
 
 build_folder="build-llvm-final" \
-cc_compiler="clang" \
-cxx_compiler="clang++" \
+cc_compiler="${SYSROOT}/usr/bin/clang" \
+cxx_compiler="${SYSROOT}/usr/bin/clang++" \
 install_dir="$PREFIX" \
-llvm_projects='clang;compiler-rt;lld;clang-tools-extra' \
+llvm_projects='clang;lld;clang-tools-extra' \
+llvm_runtimes='libcxx;libcxxabi;libunwind;compiler-rt' \
 targets_to_build="$LLVM_MACHINE;BPF" \
-additional_compiler_flags="" \
-additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -ldl -lpthread" \
 additional_cmake="${llvm_additional_cmake}" \
+additional_linker_flags="-l:libc++abi.a -rtlib=compiler-rt"
 build_llvm
 
 CURRENT_DIR=$TOOLCHAIN_DIR/final
