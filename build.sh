@@ -99,9 +99,9 @@ function build_llvm() {
             -DLLVM_ENABLE_TERMINFO=OFF \
             -DLLVM_ENABLE_ZLIB=ON \
             -DZLIB_ROOT="${SYSROOT}/usr" \
-            -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
+            -DCOMPILER_RT_BUILD_LIBFUZZER=ON \
             -DCOMPILER_RT_BUILD_PROFILE=OFF \
-            -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
+            -DCOMPILER_RT_BUILD_SANITIZERS=ON \
             -DCOMPILER_RT_BUILD_XRAY=OFF \
             -DCOMPILER_RT_INCLUDE_TESTS=OFF \
             -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
@@ -173,7 +173,6 @@ function cleanup_stage1() {
     rm -f ld.bfd;
     rm -f addr2line; \
     rm -f ar; \
-    rm -f as; \
     rm -f c++filt; \
     rm -f cpp; \
     rm -f elfedit; \
@@ -257,7 +256,6 @@ function generate_toolchain_symlinks() {
 
   ( cd $PREFIX/bin; \
     ln -s llvm-ar ar; \
-    ln -s llvm-as as; \
     ln -s llvm-ranlib ranlib; \
     ln -s clang-cpp cpp; \
     ln -s llvm-nm nm; \
@@ -430,7 +428,7 @@ generate_toolchain_symlinks
 # All the binaries that were here in previous versions were actually GCC toolchain binaries
 # which we don't want to use, since they have been linked against the system libc.
 # We leave this logic for simplicity, if in the future we have to use it again for valid binaries.
-symlinks_to_transform=()
+symlinks_to_transform=(bin/as)
 
 for symlink in "${symlinks_to_transform[@]}"
 do
