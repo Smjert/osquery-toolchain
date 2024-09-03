@@ -78,8 +78,8 @@ function build_llvm() {
             -DCMAKE_BUILD_TYPE=${LLVM_BUILD_TYPE} \
             -DCMAKE_C_COMPILER=${cc_compiler} \
             -DCMAKE_CXX_COMPILER=${cxx_compiler} \
-            -DCMAKE_EXE_LINKER_FLAGS="${additional_linker_flags}" \
-            -DCMAKE_SHARED_LINKER_FLAGS="${additional_linker_flags}" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
             -DCMAKE_INSTALL_PREFIX=${install_dir} \
             -DCMAKE_SYSROOT="${SYSROOT}" \
             -DLLVM_REQUIRES_RTTI=ON \
