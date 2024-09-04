@@ -269,6 +269,13 @@ function generate_toolchain_symlinks() {
     ln -s llvm-addr2line addr2line)
 }
 
+function patch_final_config_cmake() {
+  # Make so that ZLIB_ROOT is relative to the Config.cmake,
+  # since we want for it to report
+  path_to_config_file="${install_dir}/lib/cmake/llvm/LLVMConfig.cmake"
+  sed -Ei 's|(set\(ZLIB_ROOT )(.*)|\1"${CMAKE_CURRENT_LIST_DIR}/../../../")|g' "${path_to_config_file}"
+}
+
 set -e
 
 MACHINE="$(uname -m)"
@@ -424,6 +431,7 @@ PREFIX=$SYSROOT/usr
 
 cleanup_final
 generate_toolchain_symlinks
+patch_final_config_cmake
 
 # All the binaries that were here in previous versions were actually GCC toolchain binaries
 # which we don't want to use, since they have been linked against the system libc.
